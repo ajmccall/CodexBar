@@ -896,10 +896,10 @@ final class TokenAccountSwitcherView: NSView {
         let title = label.isEmpty ? account.displayName : label
         let availableTextWidth = max(24, buttonWidth - self.buttonHorizontalPadding)
         guard self.textWidth(title) > availableTextWidth else { return title }
-        return self.truncateMiddle(title, toFit: availableTextWidth)
+        return self.truncateTail(title, toFit: availableTextWidth)
     }
 
-    private func truncateMiddle(_ text: String, toFit width: CGFloat) -> String {
+    private func truncateTail(_ text: String, toFit width: CGFloat) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return text }
         if self.textWidth(trimmed) <= width { return trimmed }
@@ -908,27 +908,17 @@ final class TokenAccountSwitcherView: NSView {
         let ellipsisWidth = self.textWidth(ellipsis)
         guard ellipsisWidth < width else { return ellipsis }
 
-        let characters = Array(trimmed)
-        var prefixCount = min(8, max(1, characters.count / 2))
-        var suffixCount = min(8, max(1, characters.count - prefixCount))
-
-        func candidate() -> String {
-            String(characters.prefix(prefixCount)) + ellipsis + String(characters.suffix(suffixCount))
-        }
-
-        while prefixCount + suffixCount > 2, self.textWidth(candidate()) > width {
-            if prefixCount >= suffixCount, prefixCount > 1 {
-                prefixCount -= 1
-            } else if suffixCount > 1 {
-                suffixCount -= 1
-            } else {
+        var candidate = ""
+        for character in trimmed {
+            let next = candidate + String(character)
+            if self.textWidth(next + ellipsis) > width {
                 break
             }
+            candidate = next
         }
 
-        let result = candidate()
-        if self.textWidth(result) <= width { return result }
-        return ellipsis
+        if candidate.isEmpty { return ellipsis }
+        return candidate + ellipsis
     }
 
     private func textWidth(_ text: String) -> CGFloat {
