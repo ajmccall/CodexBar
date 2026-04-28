@@ -80,52 +80,48 @@ struct CopilotLoginFlow {
 
             switch tokenResult {
             case let .success(token):
-                // Fetch username for account label.
-                // If accounts already exist, fail closed when identity lookup fails so re-auth cannot create
-                // an anonymous duplicate with stale credentials left on the original account.
                 let existingAccounts = settings.tokenAccounts(for: .copilot)
-                let label: String
+                let githubIdentity: CopilotGitHubUserIdentity
                 do {
-                    let username = try await CopilotUsageFetcher.fetchGitHubUsername(token: token)
-                    let planSuffix: String
-                    do {
-                        let fetcher = CopilotUsageFetcher(token: token)
-                        let usage = try await fetcher.fetch()
-                        let plan = usage.identity(for: .copilot)?.loginMethod ?? ""
-                        planSuffix = plan.isEmpty ? "" : " (\(plan))"
-                    } catch {
-                        planSuffix = ""
-                    }
-                    label = "\(username)\(planSuffix)"
+                    githubIdentity = try await CopilotUsageFetcher.fetchGitHubUserIdentity(token: token)
                 } catch {
-                    guard existingAccounts.isEmpty else {
-                        let err = NSAlert()
-                        err.messageText = "Could Not Identify GitHub Account"
-                        err.informativeText = "GitHub login succeeded, but CodexBar could not verify which " +
-                            "account it belongs to. Please try again."
-                        err.runModal()
-                        return
-                    }
-                    label = "Account 1"
+                    let err = NSAlert()
+                    err.messageText = "Could Not Identify GitHub Account"
+                    err.informativeText = "GitHub login succeeded, but CodexBar could not verify which account it " +
+                        "belongs to. Please try again."
+                    err.runModal()
+                    return
                 }
 
-                // Check for duplicate — same username means same GitHub user
-                let usernamePrefix = label.components(separatedBy: " (").first ?? label
-                let wasRefresh = existingAccounts.contains(where: {
-                    let existingPrefix = $0.label.components(separatedBy: " (").first ?? $0.label
-                    return existingPrefix == usernamePrefix
-                })
-                if let existing = existingAccounts.first(where: {
-                    let existingPrefix = $0.label.components(separatedBy: " (").first ?? $0.label
-                    return existingPrefix == usernamePrefix
-                }) {
+                let planSuffix: String
+                do {
+                    let fetcher = CopilotUsageFetcher(token: token)
+                    let usage = try await fetcher.fetch()
+                    let plan = usage.identity(for: .copilot)?.loginMethod ?? ""
+                    planSuffix = plan.isEmpty ? "" : " (\(plan))"
+                } catch {
+                    planSuffix = ""
+                }
+                let label = "\(githubIdentity.login)\(planSuffix)"
+                let accountIdentity = githubIdentity.tokenAccountIdentity
+                let action = CopilotAccountReconciler.reconcile(
+                    existing: existingAccounts,
+                    newToken: token,
+                    newIdentity: accountIdentity,
+                    label: label)
+                let wasRefresh: Bool
+                switch action {
+                case let .update(accountID, label, token, identity):
+                    wasRefresh = true
                     settings.updateTokenAccount(
                         provider: .copilot,
-                        accountID: existing.id,
+                        accountID: accountID,
                         label: label,
-                        token: token)
-                } else {
-                    settings.addTokenAccount(provider: .copilot, label: label, token: token)
+                        token: token,
+                        identity: identity)
+                case let .add(label, token, identity):
+                    wasRefresh = false
+                    settings.addTokenAccount(provider: .copilot, label: label, token: token, identity: identity)
                 }
                 settings.setProviderEnabled(
                     provider: .copilot,

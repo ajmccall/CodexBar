@@ -36,7 +36,12 @@ extension SettingsStore {
             ])
     }
 
-    func addTokenAccount(provider: UsageProvider, label: String, token: String) {
+    func addTokenAccount(
+        provider: UsageProvider,
+        label: String,
+        token: String,
+        identity: ProviderTokenAccountIdentity? = nil)
+    {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return }
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedToken.isEmpty else { return }
@@ -49,7 +54,8 @@ extension SettingsStore {
             label: fallbackLabel,
             token: trimmedToken,
             addedAt: Date().timeIntervalSince1970,
-            lastUsed: nil)
+            lastUsed: nil,
+            identity: identity)
         let updated = ProviderTokenAccountData(
             version: existing?.version ?? 1,
             accounts: accounts + [account],
@@ -70,7 +76,8 @@ extension SettingsStore {
         provider: UsageProvider,
         accountID: UUID,
         label: String? = nil,
-        token: String? = nil)
+        token: String? = nil,
+        identity: ProviderTokenAccountIdentity? = nil)
     {
         guard let data = self.tokenAccountsData(for: provider), !data.accounts.isEmpty else { return }
         guard let index = data.accounts.firstIndex(where: { $0.id == accountID }) else { return }
@@ -85,7 +92,8 @@ extension SettingsStore {
             label: (trimmedLabel?.isEmpty == false) ? trimmedLabel! : existing.label,
             token: trimmedToken ?? existing.token,
             addedAt: existing.addedAt,
-            lastUsed: existing.lastUsed)
+            lastUsed: existing.lastUsed,
+            identity: identity ?? existing.identity)
 
         var accounts = data.accounts
         accounts[index] = updatedAccount

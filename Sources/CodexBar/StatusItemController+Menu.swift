@@ -822,9 +822,8 @@ extension StatusItemController {
         let accounts = self.settings.tokenAccounts(for: provider)
         guard accounts.count > 1 else { return nil }
         let activeIndex = self.settings.tokenAccountsData(for: provider)?.clampedActiveIndex() ?? 0
-        let canShowAllCopilotAccounts = provider == .copilot &&
+        let showAll = self.settings.showAllTokenAccountsInMenu &&
             accounts.count <= UsageStore.tokenAccountMenuSnapshotLimit
-        let showAll = canShowAllCopilotAccounts || self.settings.showAllTokenAccountsInMenu
         let snapshots = showAll ? (self.store.accountSnapshots[provider] ?? []) : []
         return TokenAccountMenuDisplay(
             provider: provider,
@@ -832,7 +831,7 @@ extension StatusItemController {
             snapshots: snapshots,
             activeIndex: activeIndex,
             showAll: showAll,
-            showSwitcher: !showAll)
+            showSwitcher: true)
     }
 
     private func codexAccountMenuDisplay(for provider: UsageProvider) -> CodexAccountMenuDisplay? {

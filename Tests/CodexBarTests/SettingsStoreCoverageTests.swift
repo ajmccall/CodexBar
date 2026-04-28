@@ -84,8 +84,13 @@ struct SettingsStoreCoverageTests {
     @Test
     func `token account update preserves identity and selection`() throws {
         let settings = Self.makeSettingsStore()
+        let identity = ProviderTokenAccountIdentity(stableID: "github-user:1", username: "octo", displayName: nil)
+        let updatedIdentity = ProviderTokenAccountIdentity(
+            stableID: "github-user:1",
+            username: "octo",
+            displayName: "Octo")
 
-        settings.addTokenAccount(provider: .copilot, label: "Primary", token: "token-1")
+        settings.addTokenAccount(provider: .copilot, label: "Primary", token: "token-1", identity: identity)
         settings.addTokenAccount(provider: .copilot, label: "Secondary", token: "token-2")
         settings.setActiveTokenAccountIndex(0, for: .copilot)
 
@@ -94,12 +99,14 @@ struct SettingsStoreCoverageTests {
             provider: .copilot,
             accountID: original.id,
             label: "Primary (Pro)",
-            token: "token-1b")
+            token: "token-1b",
+            identity: updatedIdentity)
 
         let updated = try #require(settings.selectedTokenAccount(for: .copilot))
         #expect(updated.id == original.id)
         #expect(updated.label == "Primary (Pro)")
         #expect(updated.token == "token-1b")
+        #expect(updated.identity == updatedIdentity)
         #expect(settings.tokenAccounts(for: .copilot).count == 2)
     }
 

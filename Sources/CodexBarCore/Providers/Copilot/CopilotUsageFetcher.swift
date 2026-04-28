@@ -3,6 +3,25 @@ import Foundation
 import FoundationNetworking
 #endif
 
+public struct CopilotGitHubUserIdentity: Codable, Equatable, Sendable {
+    public let id: Int64
+    public let login: String
+    public let name: String?
+
+    public init(id: Int64, login: String, name: String?) {
+        self.id = id
+        self.login = login
+        self.name = name
+    }
+
+    public var tokenAccountIdentity: ProviderTokenAccountIdentity {
+        ProviderTokenAccountIdentity(
+            stableID: "github-user:\(self.id)",
+            username: self.login,
+            displayName: self.name)
+    }
+}
+
 public struct CopilotUsageFetcher: Sendable {
     private let token: String
 
@@ -67,12 +86,18 @@ public struct CopilotUsageFetcher: Sendable {
     }
 
     public static func fetchGitHubUsername(token: String) async throws -> String {
+        try await self.fetchGitHubUserIdentity(token: token).login
+    }
+
+    public static func fetchGitHubUserIdentity(token: String) async throws -> CopilotGitHubUserIdentity {
         guard let url = URL(string: "https://api.github.com/user") else {
             throw URLError(.badURL)
         }
         var request = URLRequest(url: url)
         request.setValue("token \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("2025-04-01", forHTTPHeaderField: "X-Github-Api-Version")
+        request.setValue("GitHubCopilotChat/0.26.7", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -85,11 +110,7 @@ public struct CopilotUsageFetcher: Sendable {
             throw URLError(.badServerResponse)
         }
 
-        struct GitHubUser: Decodable {
-            let login: String
-        }
-        let user = try JSONDecoder().decode(GitHubUser.self, from: data)
-        return user.login
+        return try JSONDecoder().decode(CopilotGitHubUserIdentity.self, from: data)
     }
 
     private func addCommonHeaders(to request: inout URLRequest) {

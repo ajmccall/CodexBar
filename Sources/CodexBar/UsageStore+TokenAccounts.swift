@@ -27,9 +27,6 @@ extension UsageStore {
 
     func shouldFetchAllTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) -> Bool {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return false }
-        if provider == .copilot {
-            return accounts.count > 1
-        }
         return self.settings.showAllTokenAccountsInMenu && accounts.count > 1
     }
 
@@ -136,7 +133,7 @@ extension UsageStore {
     }
 
     func tokenAccountErrorMessage(_ error: any Error) -> String? {
-        guard !(error is CancellationError) else { return nil }
+        if error is CancellationError { return "Refresh canceled" }
         let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         return message.isEmpty ? nil : message
     }

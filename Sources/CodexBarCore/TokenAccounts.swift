@@ -1,18 +1,39 @@
 import Foundation
 
+public struct ProviderTokenAccountIdentity: Codable, Equatable, Sendable {
+    public let stableID: String
+    public let username: String?
+    public let displayName: String?
+
+    public init(stableID: String, username: String?, displayName: String?) {
+        self.stableID = stableID
+        self.username = username
+        self.displayName = displayName
+    }
+}
+
 public struct ProviderTokenAccount: Codable, Identifiable, Sendable {
     public let id: UUID
     public let label: String
     public let token: String
     public let addedAt: TimeInterval
     public let lastUsed: TimeInterval?
+    public let identity: ProviderTokenAccountIdentity?
 
-    public init(id: UUID, label: String, token: String, addedAt: TimeInterval, lastUsed: TimeInterval?) {
+    public init(
+        id: UUID,
+        label: String,
+        token: String,
+        addedAt: TimeInterval,
+        lastUsed: TimeInterval?,
+        identity: ProviderTokenAccountIdentity? = nil)
+    {
         self.id = id
         self.label = label
         self.token = token
         self.addedAt = addedAt
         self.lastUsed = lastUsed
+        self.identity = identity
     }
 
     public var displayName: String {

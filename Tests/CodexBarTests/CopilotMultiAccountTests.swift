@@ -33,22 +33,84 @@ func `copilot env override uses correct key`() {
     #expect(override == ["COPILOT_API_TOKEN": "gh_abc"])
 }
 
-// MARK: - Username Fetch (parsing only)
+// MARK: - GitHub Identity Fetch Models
 
 @Test
-func `GitHub user response parses login`() throws {
+func `GitHub user identity response parses stable fields`() throws {
     let json = #"{"login": "testuser", "id": 123, "name": "Test User"}"#
-    struct GitHubUser: Decodable { let login: String }
-    let user = try JSONDecoder().decode(GitHubUser.self, from: Data(json.utf8))
+    let user = try JSONDecoder().decode(CopilotGitHubUserIdentity.self, from: Data(json.utf8))
+
+    #expect(user.id == 123)
     #expect(user.login == "testuser")
+    #expect(user.name == "Test User")
+    #expect(user.tokenAccountIdentity.stableID == "github-user:123")
+    #expect(user.tokenAccountIdentity.username == "testuser")
 }
 
 @Test
-func `GitHub user response parses login with minimal fields`() throws {
-    let json = #"{"login": "minimaluser"}"#
-    struct GitHubUser: Decodable { let login: String }
-    let user = try JSONDecoder().decode(GitHubUser.self, from: Data(json.utf8))
+func `GitHub user identity response parses nullable name`() throws {
+    let json = #"{"login": "minimaluser", "id": 456, "name": null}"#
+    let user = try JSONDecoder().decode(CopilotGitHubUserIdentity.self, from: Data(json.utf8))
+
+    #expect(user.id == 456)
     #expect(user.login == "minimaluser")
+    #expect(user.name == nil)
+}
+
+@Test
+func `GitHub user identity response requires id and login`() {
+    let missingID = #"{"login": "testuser"}"#
+    #expect(throws: DecodingError.self) {
+        try JSONDecoder().decode(CopilotGitHubUserIdentity.self, from: Data(missingID.utf8))
+    }
+
+    let missingLogin = #"{"id": 123}"#
+    #expect(throws: DecodingError.self) {
+        try JSONDecoder().decode(CopilotGitHubUserIdentity.self, from: Data(missingLogin.utf8))
+    }
+}
+
+// MARK: - Account Reconciliation
+
+@Test
+func `copilot reconciler updates matching stable identity`() {
+    let accountID = UUID()
+    let identity = ProviderTokenAccountIdentity(stableID: "github-user:1", username: "octo", displayName: nil)
+    let existing = ProviderTokenAccount(
+        id: accountID,
+        label: "renamed account",
+        token: "old",
+        addedAt: 1,
+        lastUsed: nil,
+        identity: identity)
+
+    let action = CopilotAccountReconciler.reconcile(
+        existing: [existing],
+        newToken: "new",
+        newIdentity: identity,
+        label: "octo (Pro)")
+
+    #expect(action == .update(accountID: accountID, label: "octo (Pro)", token: "new", identity: identity))
+}
+
+@Test
+func `copilot reconciler appends same label with different identity`() {
+    let existing = ProviderTokenAccount(
+        id: UUID(),
+        label: "octo",
+        token: "old",
+        addedAt: 1,
+        lastUsed: nil,
+        identity: ProviderTokenAccountIdentity(stableID: "github-user:1", username: "octo", displayName: nil))
+    let newIdentity = ProviderTokenAccountIdentity(stableID: "github-user:2", username: "octo", displayName: nil)
+
+    let action = CopilotAccountReconciler.reconcile(
+        existing: [existing],
+        newToken: "new",
+        newIdentity: newIdentity,
+        label: "octo")
+
+    #expect(action == .add(label: "octo", token: "new", identity: newIdentity))
 }
 
 // MARK: - API Key Fallback
