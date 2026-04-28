@@ -390,7 +390,7 @@ struct ProvidersPane: View {
                     }
                 }
             },
-            primaryAddActionTitle: provider == .copilot ? "Add Account" : nil,
+            primaryAddActionTitle: provider == .copilot ? "Add GitHub Account" : nil,
             primaryAddAction: provider == .copilot ? {
                 await CopilotLoginFlow.run(settings: self.settings)
                 await ProviderInteractionContext.$current.withValue(.userInitiated) {

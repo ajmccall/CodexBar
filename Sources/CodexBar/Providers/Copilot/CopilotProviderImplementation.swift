@@ -27,33 +27,12 @@ struct CopilotProviderImplementation: ProviderImplementation {
     func loginMenuAction(context _: ProviderMenuLoginContext)
         -> (label: String, action: MenuDescriptor.MenuAction)?
     {
-        ("Add Account...", .addProviderAccount(.copilot))
+        ("Add GitHub Account…", .addProviderAccount(.copilot))
     }
 
     @MainActor
-    func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "copilot-add-account",
-                title: "GitHub Login",
-                subtitle: "Requires authentication via GitHub Device Flow.",
-                footerText: "The device code is copied to your clipboard. Paste it into the GitHub page with ⌘V.",
-                kind: .secure,
-                placeholder: "Sign in via button below",
-                binding: context.stringBinding(\.copilotAPIToken),
-                actions: [
-                    ProviderSettingsActionDescriptor(
-                        id: "copilot-add-account-action",
-                        title: "Add Account",
-                        style: .bordered,
-                        isVisible: { true },
-                        perform: {
-                            await CopilotLoginFlow.run(settings: context.settings)
-                        }),
-                ],
-                isVisible: nil,
-                onActivate: nil),
-        ]
+    func settingsFields(context _: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        []
     }
 
     @MainActor
