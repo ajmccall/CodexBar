@@ -870,6 +870,7 @@ final class TokenAccountSwitcherView: NSView {
             }
 
             stack.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
 
         self.addSubview(stack)
