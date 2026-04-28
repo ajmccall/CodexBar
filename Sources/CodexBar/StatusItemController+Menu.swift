@@ -728,8 +728,9 @@ extension StatusItemController {
             onSelect: { [weak self, weak menu] index in
                 guard let self, let menu else { return }
                 self.settings.setActiveTokenAccountIndex(index, for: display.provider)
-                // Immediately rebuild to show the new selection, then refresh data
-                // and rebuild again once fresh data arrives.
+                self.store.prepareTokenAccountSelectionRefresh(provider: display.provider)
+                // Immediately rebuild to show the new selection in a refreshing state,
+                // then refresh data and rebuild again once fresh data arrives.
                 self.populateMenu(menu, provider: display.provider)
                 self.markMenuFresh(menu)
                 self.applyIcon(phase: nil)

@@ -71,6 +71,20 @@ extension UsageStore {
             selectedAccount: effectiveSelected)
     }
 
+    @discardableResult
+    func prepareTokenAccountSelectionRefresh(provider: UsageProvider) -> Bool {
+        guard TokenAccountSupportCatalog.support(for: provider) != nil else { return false }
+        self.snapshots.removeValue(forKey: provider)
+        self.errors[provider] = nil
+        self.lastSourceLabels.removeValue(forKey: provider)
+        self.lastFetchAttempts.removeValue(forKey: provider)
+        self.accountSnapshots.removeValue(forKey: provider)
+        self.failureGates[provider]?.reset()
+        self.refreshingProviders.insert(provider)
+        self.persistWidgetSnapshot(reason: "token-account-selection-invalidate")
+        return true
+    }
+
     func limitedTokenAccounts(
         _ accounts: [ProviderTokenAccount],
         selected: ProviderTokenAccount?) -> [ProviderTokenAccount]

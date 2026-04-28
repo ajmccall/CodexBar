@@ -803,6 +803,9 @@ final class TokenAccountSwitcherView: NSView {
     private let unselectedBackground = NSColor.clear.cgColor
     private let selectedTextColor = NSColor.white
     private let unselectedTextColor = NSColor.secondaryLabelColor
+    private let buttonFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+    private let buttonHorizontalPadding: CGFloat = 14
+    private let buttonSideInset: CGFloat = 6
 
     init(accounts: [ProviderTokenAccount], selectedIndex: Int, width: CGFloat, onSelect: @escaping (Int) -> Void) {
         self.accounts = accounts
@@ -846,9 +849,11 @@ final class TokenAccountSwitcherView: NSView {
             row.spacing = self.rowSpacing
             row.translatesAutoresizingMaskIntoConstraints = false
 
+            let buttonWidth = self.buttonWidth(for: rowAccounts.count)
             for account in rowAccounts {
+                let title = self.compactButtonTitle(for: account, buttonWidth: buttonWidth)
                 let button = PaddedToggleButton(
-                    title: account.displayName,
+                    title: title,
                     target: self,
                     action: #selector(self.handleSelect))
                 button.tag = globalIndex
@@ -856,7 +861,7 @@ final class TokenAccountSwitcherView: NSView {
                 button.isBordered = false
                 button.setButtonType(.toggle)
                 button.controlSize = .small
-                button.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+                button.font = self.buttonFont
                 button.wantsLayer = true
                 button.layer?.cornerRadius = 6
                 row.addArrangedSubview(button)
@@ -869,13 +874,65 @@ final class TokenAccountSwitcherView: NSView {
 
         self.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 6),
-            stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -6),
+            stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: self.buttonSideInset),
+            stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -self.buttonSideInset),
             stack.topAnchor.constraint(equalTo: self.topAnchor),
             stack.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             stack.heightAnchor.constraint(equalToConstant: self.rowHeight * CGFloat(rows.count) +
                 (useTwoRows ? self.rowSpacing : 0)),
         ])
+    }
+
+    private func buttonWidth(for count: Int) -> CGFloat {
+        let contentWidth = self.bounds.width - (self.buttonSideInset * 2)
+        let spacing = self.rowSpacing * CGFloat(max(0, count - 1))
+        guard count > 0 else { return contentWidth }
+        return max(44, floor((contentWidth - spacing) / CGFloat(count)))
+    }
+
+    private func compactButtonTitle(for account: ProviderTokenAccount, buttonWidth: CGFloat) -> String {
+        let label = account.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = label.isEmpty ? account.displayName : label
+        let availableTextWidth = max(24, buttonWidth - self.buttonHorizontalPadding)
+        guard self.textWidth(title) > availableTextWidth else { return title }
+        return self.truncateMiddle(title, toFit: availableTextWidth)
+    }
+
+    private func truncateMiddle(_ text: String, toFit width: CGFloat) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return text }
+        if self.textWidth(trimmed) <= width { return trimmed }
+
+        let ellipsis = "…"
+        let ellipsisWidth = self.textWidth(ellipsis)
+        guard ellipsisWidth < width else { return ellipsis }
+
+        let characters = Array(trimmed)
+        var prefixCount = min(8, max(1, characters.count / 2))
+        var suffixCount = min(8, max(1, characters.count - prefixCount))
+
+        func candidate() -> String {
+            String(characters.prefix(prefixCount)) + ellipsis + String(characters.suffix(suffixCount))
+        }
+
+        while prefixCount + suffixCount > 2, self.textWidth(candidate()) > width {
+            if prefixCount >= suffixCount, prefixCount > 1 {
+                prefixCount -= 1
+            } else if suffixCount > 1 {
+                suffixCount -= 1
+            } else {
+                break
+            }
+        }
+
+        let result = candidate()
+        if self.textWidth(result) <= width { return result }
+        return ellipsis
+    }
+
+    private func textWidth(_ text: String) -> CGFloat {
+        let attributes: [NSAttributedString.Key: Any] = [.font: self.buttonFont]
+        return ceil((text as NSString).size(withAttributes: attributes).width)
     }
 
     private func updateButtonStyles() {
@@ -894,6 +951,12 @@ final class TokenAccountSwitcherView: NSView {
         self.updateButtonStyles()
         self.onSelect(index)
     }
+
+    #if DEBUG
+    func _test_buttonTitles() -> [String] {
+        self.buttons.map(\.title)
+    }
+    #endif
 }
 
 final class CodexAccountSwitcherView: NSView {
